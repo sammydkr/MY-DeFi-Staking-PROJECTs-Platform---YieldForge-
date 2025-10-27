@@ -1,0 +1,44 @@
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract YieldForge is ReentrancyGuard, Ownable {
+    IERC20 public stakingToken;
+    IERC20 public rewardsToken;
+
+     uint public rewardRate = 100; // Rewards per second per token
+    uint public lastUpdateTime;
+    uint public rewardPerTokenStored;
+    
+    mapping(address => uint) public userRewardPerTokenPaid;
+    mapping(address => uint) public rewards;
+    mapping(address => uint) public balances;
+
+function rewardPerToken() public view returns (uint) {
+        if (_totalSupply == 0) return rewardPerTokenStored;
+        return rewardPerTokenStored + 
+            (((block.timestamp - lastUpdateTime) * rewardRate * 1e18) / _totalSupply);
+
+    
+    function withdraw(uint _amount) external nonReentrant updateReward(msg.sender) {
+        require(_amount > 0, "Cannot withdraw 0");
+        require(balances[msg.sender] >= _amount, "Insufficient balance");
+        
+        _totalSupply -= _amount;
+        balances[msg.sender] -= _amount;
+        stakingToken.transfer(msg.sender, _amount);
+        emit Withdrawn(msg.sender, _amount);
+    }
+
+    function totalSupply() external view returns (uint) {
+        return _totalSupply;
+    }
+    
+    function setRewardRate(uint _rewardRate) external onlyOwner {
+        rewardRate = _rewardRate;
+    }
+    
+    // Emergency function to recover ERC20 tokens
+    function recoverERC20(address tokenAddress, uint amount) external onlyOwner {
+        IERC20(tokenAddress).transfer(owner(), amount);
+    }
